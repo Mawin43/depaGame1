@@ -11,10 +11,16 @@ export default function Home() {
   const [bestStage, setBestStage] = useState(1);
   const [remainingBall, setRemainingBall] = useState(5);
   const [over, setOver] = useState(false);
-  const [oneShot, setOneShot] = useState(0);
 
-  // ** เพิ่ม State สำหรับขนาดเป้า (เริ่ม 20 px) **
+  // เพิ่ม State สำหรับขนาดเป้า และการเคลื่อนที่
   const [targetRadius, setTargetRadius] = useState(30);
+
+  // ===== State สำหรับเป้าเคลื่อน =====
+  const [targetIsMoving, setTargetIsMoving] = useState(false);
+  const [targetBaseX, setTargetBaseX] = useState(600); // จุดเริ่มแกน X
+  const [targetOffsetX, setTargetOffsetX] = useState(0); // 0..50
+  const [directionX, setDirectionX] = useState(1); // +1 หรือ -1
+  // ถ้าอยากขยับแกน Y ด้วยก็ค่อยเพิ่ม State เช่น targetBaseY, targetOffsetY, directionY
 
   // ปุ่ม "ด่านต่อไป" หลังยิงโดน
   const [showStartButton, setShowStartButton] = useState(false);
@@ -115,21 +121,21 @@ export default function Home() {
   }
 
   // ===== ฟังก์ชันวาดฉาก (พื้น, ตัวละคร, เป้า) =====
+  // ===== ฟังก์ชันวาดฉาก (วาดเป้าที่ (targetBaseX+targetOffsetX, targetY))
   const drawScene = (ctx: CanvasRenderingContext2D) => {
-    // พื้นหลังขาว
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    // พื้นสีเขียว (ตั้งแต่ y=groundY ลงไป)
     ctx.fillStyle = "green";
     ctx.fillRect(0, groundY, ctx.canvas.width, ctx.canvas.height - groundY);
 
-    // ตัวละคร (สีม่วง)
     ctx.fillStyle = "purple";
     ctx.fillRect(playerX, playerY - playerHeight, playerWidth, playerHeight);
 
-    // เป้า (สีน้ำเงิน) - ใช้ค่า targetRadius จาก State
+    // วาดเป้า
     ctx.beginPath();
+    // เป้าจะอยู่ที่ X = targetBaseX + targetOffsetX
+    const targetX = targetBaseX + targetOffsetX;
     ctx.arc(targetX, targetY, targetRadius, 0, 2 * Math.PI);
     ctx.fillStyle = "blue";
     ctx.fill();
@@ -184,17 +190,55 @@ export default function Home() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // 1) วาดฉาก
     drawScene(ctx);
-    // 2) วาดเส้นเก่า (ถ้ามี)
     drawAllLines(ctx);
-    // 3) ถ้ายังไม่ยิง => วาดลูกศรพร้อม label (v,a)
+
+    // ลูกศร
     if (!isShooting && !hitTarget && !showStartButton) {
       const muzzleX = playerX + playerWidth / 2;
       const muzzleY = playerY - playerHeight;
       drawArrow(ctx, muzzleX, muzzleY, angle, 60);
     }
   };
+
+  // ===== useEffect สำหรับ “เคลื่อนที่เป้า” แยกจากกระสุน =====
+  useEffect(() => {
+    let moveId: number;
+
+    function moveTarget() {
+      // ขยับทีละ 1 px ในทุก ๆ เฟรม
+      if (targetIsMoving) {
+        setTargetOffsetX((prev) => {
+          let next = prev + directionX; // เพิ่ม/ลดทีละ 1 px
+
+          // ถ้าเกินขอบบน (50) => ให้ = 50 แล้วกลับทิศ
+          if (next > 50) {
+            next = 50;
+            setDirectionX(-1);
+          }
+          // ถ้าน้อยกว่า 0 => ให้ = 0 แล้วกลับทิศ
+          if (next < 0) {
+            next = 0;
+            setDirectionX(1);
+          }
+
+          return next;
+        });
+      }
+
+      // วาดใหม่ => ให้เห็นเป้าเลื่อนทีละ 1 px
+      redrawAll();
+
+      // ขอ animation frame ถัดไป
+      moveId = requestAnimationFrame(moveTarget);
+    }
+
+    moveId = requestAnimationFrame(moveTarget);
+
+    return () => {
+      cancelAnimationFrame(moveId);
+    };
+  }, [targetIsMoving, directionX]);
 
   // ===== ตรวจสอบการชน =====
   const checkCollision = (bulletX: number, bulletY: number) => {
@@ -206,7 +250,6 @@ export default function Home() {
 
   // ===== ยิง =====
   const handleShoot = () => {
-    setOneShot(oneShot + 1);
     setIsShooting(true);
     setHitTarget(false);
     setRemainingBall(remainingBall - 1);
@@ -229,17 +272,23 @@ export default function Home() {
     }
     setHitTarget(false);
 
-    // ล้างเส้นการยิงทั้งหมด
     linesRef.current = [];
-
     redrawAll();
     setShowStartButton(false);
     setOver(false);
     setRemainingBall(5);
-    setOneShot(0);
     setLevel(1);
-    // รีเซ็ตขนาดเป้ากลับไป 20
     setTargetRadius(30);
+
+    // ** รีเซ็ตการเคลื่อนที่เป้าด้วย **
+    setTargetIsMoving(false);
+    setTargetBaseX(600);
+    setTargetOffsetX(0);
+    setDirectionX(1);
+
+    // setTargetX, setTargetY กลับค่าตั้งต้นได้ถ้าต้องการ
+    setTargetX(600);
+    setTargetY(350);
   };
 
   const handleNext = () => {
@@ -249,18 +298,13 @@ export default function Home() {
     }
     setHitTarget(false);
 
-    // ล้างเส้นการยิงทั้งหมด
     linesRef.current = [];
-
     redrawAll();
     setShowStartButton(false);
     setOver(false);
-    if (oneShot == 1) {
-      setRemainingBall(remainingBall + 2);
-    } else {
-      setRemainingBall(remainingBall + 1);
-    }
-    setOneShot(0);
+    setRemainingBall(5);
+
+    // รีเซ็ตหรือไม่รีเซ็ตการเคลื่อนที่เป้าตามต้องการ
   };
 
   // ===== ด่านต่อไป (*** จุดปรับลดขนาดเป้าเมื่อผ่านทุก 5 ด่าน ***) =====
@@ -268,13 +312,16 @@ export default function Home() {
     if (requestIdRef.current !== null) {
       cancelAnimationFrame(requestIdRef.current);
     }
-    // ตั้ง level ใหม่
     setLevel((prev) => {
       const newLevel = prev + 1;
       // ถ้า newLevel เป็น 3,6,9,... => ลดขนาดเป้า
       if (newLevel % 3 === 0) {
         setTargetRadius((oldRad) => Math.max(5, oldRad - 1));
-        // ลด 2 px และไม่ให้ต่ำกว่า 5
+      }
+      // ** ถ้า newLevel >= 15 => สุ่มให้เป้าเคลื่อน (ถ้ายังไม่เคลื่อน) **
+      if (newLevel >= 2) {
+        // เริ่มเคลื่อนเป้า
+        setTargetIsMoving(true);
       }
       return newLevel;
     });
@@ -309,6 +356,8 @@ export default function Home() {
       const x = velocity * Math.cos(rad) * t;
       const y = velocity * Math.sin(rad) * t - 0.5 * g * t * t;
 
+      // ** ถ้าเป้าเคลื่อน => อัปเดตตำแหน่งเป้าทุกเฟรม **
+
       // วาดฉาก
       drawScene(ctx);
       // วาดเส้นเก่า
@@ -338,7 +387,6 @@ export default function Home() {
           if (remainingBall <= 0) {
             setOver(true);
           }
-          // บันทึก finalX, finalY
           linesRef.current[currentShotIndex].finalX = bulletX;
           linesRef.current[currentShotIndex].finalY = bulletY;
 
@@ -448,6 +496,34 @@ export default function Home() {
           />
         </label>
       </div>
+      <div>
+        {!isShooting && !hitTarget && !showStartButton && (
+          <button
+            onClick={handleShoot}
+            style={{
+              marginRight: 20,
+              width: 50,
+              height: 25,
+              backgroundColor: "white",
+              color: "black",
+            }}
+          >
+            ยิง
+          </button>
+        )}
+        <button
+          onClick={handleReset}
+          style={{
+            marginRight: 20,
+            width: 50,
+            height: 25,
+            backgroundColor: "white",
+            color: "black",
+          }}
+        >
+          รีเซ็ต
+        </button>
+      </div>
 
       <canvas
         ref={canvasRef}
@@ -492,39 +568,10 @@ export default function Home() {
           }}
         >
           <p style={{ color: "red" }}>!! บอลหมดแล้ว !!</p>
-          <p style={{ color: "lightgreen" }}>มาได้ถึงด่านที่ {level}</p>
           <br />
           <button onClick={handleReset}>เริ่มเล่นใหม่</button>
         </div>
       )}
-      <div>
-        {!isShooting && !hitTarget && !showStartButton && (
-          <button
-            onClick={handleShoot}
-            style={{
-              marginRight: 20,
-              width: 50,
-              height: 25,
-              backgroundColor: "white",
-              color: "black",
-            }}
-          >
-            ยิง
-          </button>
-        )}
-        {/* <button
-          onClick={handleReset}
-          style={{
-            marginRight: 20,
-            width: 50,
-            height: 25,
-            backgroundColor: "white",
-            color: "black",
-          }}
-        >
-          รีเซ็ต
-        </button> */}
-      </div>
     </div>
   );
 }
