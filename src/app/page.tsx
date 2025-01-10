@@ -13,8 +13,8 @@ export default function Home() {
   const [over, setOver] = useState(false);
   const [oneShot, setOneShot] = useState(0);
 
-  // ** เพิ่ม State สำหรับขนาดเป้า (เริ่ม 20 px) **
-  const [targetRadius, setTargetRadius] = useState(30);
+  // ขนาดเป้า
+  const [targetRadius, setTargetRadius] = useState(50);
 
   // ปุ่ม "ด่านต่อไป" หลังยิงโดน
   const [showStartButton, setShowStartButton] = useState(false);
@@ -23,7 +23,13 @@ export default function Home() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestIdRef = useRef<number | null>(null);
 
-  // เก็บการยิง (linesRef)
+  // ** โหลดรูป 'tower.png' เก็บใน towerImgRef **
+  const towerImgRef = useRef<HTMLImageElement | null>(null);
+  // ** โหลดรูป 'enemy.gif' เก็บใน enemyImgRef **
+  const enemyImgRef = useRef<HTMLImageElement | null>(null);
+  const cloudImgRef = useRef<HTMLImageElement | null>(null);
+
+  // เก็บเส้นการยิง
   const linesRef = useRef<
     Array<{
       velocity: number;
@@ -37,17 +43,43 @@ export default function Home() {
   // -------- ค่าคงที่ --------
   const g = 9.8;
   const groundY = 400;
-  const playerX = 50;
-  const playerY = groundY;
-  const playerWidth = 30;
-  const playerHeight = 50;
+  const playerX = 50; // ตำแหน่ง X ป้อม
+  const playerY = groundY; // ตำแหน่ง Y พื้น
+  const playerWidth = 80;
+  const playerHeight = 110;
   const bulletRadius = 5;
 
-  // ตำแหน่งเป้า (X, Y) - เริ่มต้น
+  // ตำแหน่งศัตรู (เดิมคือเป้าสีฟ้า)
   const [targetX, setTargetX] = useState(600);
   const [targetY, setTargetY] = useState(350);
 
-  // ===== ฟังก์ชันวาดลูกศร (พร้อมข้อความ (v,a)) =====
+  // ===== โหลดภาพป้อม + enemy.gif ใน useEffect =====
+  useEffect(() => {
+    // โหลด tower.png
+    const tImg = new Image();
+    tImg.src = "/img/tower.png"; // path ตามโครงสร้างไฟล์
+    tImg.onload = () => {
+      towerImgRef.current = tImg;
+      redrawAll();
+    };
+
+    // โหลด enemy.gif
+    const eImg = new Image();
+    eImg.src = "/img/enemy.gif"; // path ตามโครงสร้างไฟล์
+    eImg.onload = () => {
+      enemyImgRef.current = eImg;
+      redrawAll();
+    };
+
+    const bImg = new Image();
+    bImg.src = "/img/cloud.jpg"; // path ตามโครงสร้างไฟล์
+    bImg.onload = () => {
+      cloudImgRef.current = bImg;
+      redrawAll();
+    };
+  }, []);
+
+  // ===== ฟังก์ชันวาดลูกศร (v,a) =====
   function drawArrow(
     ctx: CanvasRenderingContext2D,
     startX: number,
@@ -57,7 +89,7 @@ export default function Home() {
   ) {
     const rad = (angleDeg * Math.PI) / 180;
 
-    // ปลายลูกศร
+    // คำนวณปลายลูกศร
     const endX = startX + length * Math.cos(rad);
     const endY = startY - length * Math.sin(rad);
 
@@ -87,20 +119,20 @@ export default function Home() {
     ctx.fillStyle = "blue";
     ctx.fill();
 
-    // ---- วาดข้อความ (v, a) ที่ปลายลูกศร ----
+    // ข้อความ (v, a)
     const label = `(ความเร็ว ${velocity}, มุม ${angleDeg})`;
     ctx.font = "14px Arial";
 
-    // วัดความกว้างของข้อความ
+    // วัดความกว้าง
     const textWidth = ctx.measureText(label).width;
     const textHeight = 16;
     const padding = 4;
 
-    // ตำแหน่งที่จะแสดงข้อความ (เหนือปลายลูกศรเล็กน้อย)
+    // ตำแหน่งข้อความ (เหนือปลายลูกศรเล็กน้อย)
     const labelX = endX;
     const labelY = endY - 10;
 
-    // กล่องพื้นหลัง (สีดำ)
+    // วาดพื้นหลังข้อความ
     ctx.fillStyle = "black";
     ctx.fillRect(
       labelX - padding,
@@ -109,30 +141,65 @@ export default function Home() {
       textHeight + padding * 2
     );
 
-    // ตัวหนังสือสีขาว
+    // วาดข้อความสีขาว
     ctx.fillStyle = "white";
     ctx.fillText(label, labelX, labelY - padding);
   }
 
-  // ===== ฟังก์ชันวาดฉาก (พื้น, ตัวละคร, เป้า) =====
+  // ===== ฟังก์ชันวาดฉาก (พื้น, ป้อม, enemy.gif) =====
   const drawScene = (ctx: CanvasRenderingContext2D) => {
-    // พื้นหลังขาว
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    // พื้นหลัง
 
-    // พื้นสีเขียว (ตั้งแต่ y=groundY ลงไป)
+    if (cloudImgRef.current) {
+      ctx.drawImage(
+        cloudImgRef.current,
+        0,
+        0,
+        ctx.canvas.width,
+        ctx.canvas.height
+      );
+    } else {
+      // fallback เป็นสี่เหลี่ยมสีม่วง
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
+
+    // พื้นสีเขียว
     ctx.fillStyle = "green";
     ctx.fillRect(0, groundY, ctx.canvas.width, ctx.canvas.height - groundY);
 
-    // ตัวละคร (สีม่วง)
-    ctx.fillStyle = "purple";
-    ctx.fillRect(playerX, playerY - playerHeight, playerWidth, playerHeight);
+    // วาดป้อม tower
+    if (towerImgRef.current) {
+      ctx.drawImage(
+        towerImgRef.current,
+        playerX,
+        playerY - playerHeight,
+        playerWidth,
+        playerHeight
+      );
+    } else {
+      // fallback เป็นสี่เหลี่ยมสีม่วง
+      ctx.fillStyle = "purple";
+      ctx.fillRect(playerX, playerY - playerHeight, playerWidth, playerHeight);
+    }
 
-    // เป้า (สีน้ำเงิน) - ใช้ค่า targetRadius จาก State
-    ctx.beginPath();
-    ctx.arc(targetX, targetY, targetRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = "blue";
-    ctx.fill();
+    // วาด enemy.gif แทนเป้า
+    if (enemyImgRef.current) {
+      // ให้กึ่งกลางอยู่ที่ (targetX, targetY)
+      ctx.drawImage(
+        enemyImgRef.current,
+        targetX - targetRadius,
+        targetY - targetRadius,
+        targetRadius * 2,
+        targetRadius * 2
+      );
+    } else {
+      // fallback เป็นวงกลมสีน้ำเงิน
+      ctx.beginPath();
+      ctx.arc(targetX, targetY, targetRadius, 0, 2 * Math.PI);
+      ctx.fillStyle = "blue";
+      ctx.fill();
+    }
   };
 
   // ===== ฟังก์ชันวาดเส้นที่ยิงทั้งหมด =====
@@ -141,7 +208,7 @@ export default function Home() {
       const pts = line.points;
       if (pts.length === 0) return;
 
-      // ลากเส้นแดง
+      // เส้นสีแดง
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < pts.length; i++) {
@@ -151,7 +218,7 @@ export default function Home() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // ถ้ามี finalX, finalY => วาด label (v,a)
+      // ถ้ามี finalX, finalY => วาดข้อความ
       if (line.finalX !== undefined && line.finalY !== undefined) {
         const text = `ความเร็ว ${line.velocity}, มุม ${line.angle})`;
         ctx.font = "14px Arial";
@@ -162,7 +229,6 @@ export default function Home() {
         const labelX = line.finalX;
         const labelY = line.finalY - 10;
 
-        // กล่องดำ
         ctx.fillStyle = "black";
         ctx.fillRect(
           labelX - padding,
@@ -170,25 +236,23 @@ export default function Home() {
           textWidth + padding * 2,
           textHeight + padding * 2
         );
-        // ข้อความสีขาว
         ctx.fillStyle = "white";
         ctx.fillText(text, labelX, labelY - padding);
       }
     });
   };
 
-  // ===== ฟังก์ชัน redrawAll: วาดฉาก + เส้น + ลูกศร (ถ้ายังไม่ยิง) =====
+  // ===== ฟังก์ชัน redrawAll =====
   const redrawAll = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // 1) วาดฉาก
     drawScene(ctx);
-    // 2) วาดเส้นเก่า (ถ้ามี)
     drawAllLines(ctx);
-    // 3) ถ้ายังไม่ยิง => วาดลูกศรพร้อม label (v,a)
+
+    // วาดลูกศร ถ้ายังไม่ยิง
     if (!isShooting && !hitTarget && !showStartButton) {
       const muzzleX = playerX + playerWidth / 2;
       const muzzleY = playerY - playerHeight;
@@ -210,7 +274,7 @@ export default function Home() {
     setIsShooting(true);
     setHitTarget(false);
     setRemainingBall(remainingBall - 1);
-    // บันทึกค่าการยิงครั้งนี้
+
     linesRef.current.push({
       velocity,
       angle,
@@ -229,17 +293,16 @@ export default function Home() {
     }
     setHitTarget(false);
 
-    // ล้างเส้นการยิงทั้งหมด
     linesRef.current = [];
-
     redrawAll();
+
     setShowStartButton(false);
     setOver(false);
     setRemainingBall(5);
     setOneShot(0);
     setLevel(1);
-    // รีเซ็ตขนาดเป้ากลับไป 20
-    setTargetRadius(30);
+
+    setTargetRadius(50);
   };
 
   const handleNext = () => {
@@ -249,13 +312,13 @@ export default function Home() {
     }
     setHitTarget(false);
 
-    // ล้างเส้นการยิงทั้งหมด
     linesRef.current = [];
-
     redrawAll();
     setShowStartButton(false);
     setOver(false);
-    if (oneShot == 1) {
+
+    // เพิ่มลูกบอลกลับ
+    if (oneShot === 1) {
       setRemainingBall(remainingBall + 2);
     } else {
       setRemainingBall(remainingBall + 1);
@@ -263,23 +326,21 @@ export default function Home() {
     setOneShot(0);
   };
 
-  // ===== ด่านต่อไป (*** จุดปรับลดขนาดเป้าเมื่อผ่านทุก 5 ด่าน ***) =====
+  // ===== ด่านต่อไป =====
   const handleNextLevel = () => {
     if (requestIdRef.current !== null) {
       cancelAnimationFrame(requestIdRef.current);
     }
-    // ตั้ง level ใหม่
     setLevel((prev) => {
       const newLevel = prev + 1;
-      // ถ้า newLevel เป็น 3,6,9,... => ลดขนาดเป้า
+      // ลดขนาดเป้าทุก 3 ด่าน
       if (newLevel % 3 === 0) {
-        setTargetRadius((oldRad) => Math.max(5, oldRad - 1));
-        // ลด 2 px และไม่ให้ต่ำกว่า 5
+        setTargetRadius((oldRad) => Math.max(5, oldRad - 2));
       }
       return newLevel;
     });
 
-    // สุ่มเป้า
+    // สุ่มตำแหน่ง enemy
     const randomX = Math.floor(Math.random() * (750 - 400 + 1)) + 400;
     const randomY = Math.floor(Math.random() * (350 - 50 + 1)) + 50;
     setTargetX(randomX);
@@ -289,7 +350,6 @@ export default function Home() {
     setIsShooting(false);
 
     linesRef.current = [];
-
     redrawAll();
     setShowStartButton(true);
   };
@@ -304,17 +364,19 @@ export default function Home() {
     const startTime = Date.now();
 
     const drawFrame = () => {
-      const t = (Date.now() - startTime) / 1000;
       const rad = (angle * Math.PI) / 180;
-      const x = velocity * Math.cos(rad) * t;
-      const y = velocity * Math.sin(rad) * t - 0.5 * g * t * t;
+      const speedFactor = 7; // เร่งความเร็ว
+      const t = (Date.now() - startTime) / 1000;
+      const scaledTime = t * speedFactor;
 
-      // วาดฉาก
+      const x = velocity * Math.cos(rad) * scaledTime;
+      const y =
+        velocity * Math.sin(rad) * scaledTime -
+        0.5 * g * scaledTime * scaledTime;
+
       drawScene(ctx);
-      // วาดเส้นเก่า
       drawAllLines(ctx);
 
-      // ตำแหน่งกระสุน
       const bulletStartX = playerX + playerWidth / 2;
       const bulletStartY = playerY - playerHeight;
       const bulletX = bulletStartX + x;
@@ -327,21 +389,19 @@ export default function Home() {
           y: bulletY,
         });
 
-        // วาดกระสุน
         ctx.beginPath();
         ctx.arc(bulletX, bulletY, bulletRadius, 0, 2 * Math.PI);
         ctx.fillStyle = "red";
         ctx.fill();
 
+        // เช็คขอบ
         if (bulletX < 0 || bulletX > canvas.width || bulletY < 0) {
           setIsShooting(false);
           if (remainingBall <= 0) {
             setOver(true);
           }
-          // บันทึก finalX, finalY
           linesRef.current[currentShotIndex].finalX = bulletX;
           linesRef.current[currentShotIndex].finalY = bulletY;
-
           redrawAll();
           return;
         }
@@ -354,7 +414,6 @@ export default function Home() {
 
             linesRef.current[currentShotIndex].finalX = bulletX;
             linesRef.current[currentShotIndex].finalY = bulletY;
-
             redrawAll();
             handleNextLevel();
             return;
@@ -369,7 +428,6 @@ export default function Home() {
         const currentShotIndex = linesRef.current.length - 1;
         linesRef.current[currentShotIndex].finalX = bulletX;
         linesRef.current[currentShotIndex].finalY = bulletY;
-
         redrawAll();
         return;
       }
@@ -401,52 +459,50 @@ export default function Home() {
     redrawAll();
   }, []);
 
-  // ===== useEffect: เมื่อ angle, velocity เปลี่ยน และยังไม่ยิง => วาดลูกศรใหม่ + เส้นเก่า =====
+  // ===== useEffect: เมื่อ angle/velocity เปลี่ยน และยังไม่ยิง => วาดใหม่ =====
   useEffect(() => {
     if (!isShooting && !hitTarget && !showStartButton) {
       redrawAll();
     }
   }, [angle, velocity, isShooting, hitTarget, showStartButton]);
 
+  // ===== Render =====
   return (
     <div style={{ textAlign: "center", marginTop: 50, position: "relative" }}>
-      <h1>
-        Projectile Game Stage {level} (Highest Stage {bestStage})
-      </h1>
-      <br />
-      <h1>เหลือบอล {remainingBall} ลูก</h1>
-      <br />
-      <div style={{ marginBottom: 20, borderSpacing: 10 }}>
-        <label>
-          ความเร็ว (0-100):
-          <input
-            type="number"
-            value={velocity}
-            min={0}
-            max={110}
-            onChange={(e) => {
-              let v = Number(e.target.value);
-              v = Math.max(0, Math.min(100, v));
-              setVelocity(v);
-            }}
-            style={{ color: "black" }}
-          />
-        </label>
-        <label>
-          มุม (0-90):
-          <input
-            type="number"
-            value={angle}
-            min={0}
-            max={90}
-            onChange={(e) => {
-              let a = Number(e.target.value);
-              a = Math.max(0, Math.min(90, a));
-              setAngle(a);
-            }}
-            style={{ color: "black" }}
-          />
-        </label>
+      <div
+        style={{
+          gap: "20px",
+          padding: "20px",
+          borderRadius: "10px",
+          boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
+          width: "fit-content",
+          height: "150px",
+          backgroundColor: "rgba(255, 255, 255, 0.1)", // เพิ่มพื้นหลังสีเข้ม
+          margin: "0 auto", // จัดให้อยู่กึ่งกลางแนวนอน
+        }}
+      >
+        <h1
+          style={{
+            fontSize: "30px",
+            fontWeight: "bold",
+            color: "#FFFFFF",
+            marginRight: "10px",
+          }}
+        >
+          Projectile Game Stage {level} (Highest Stage {bestStage})
+        </h1>
+        <br />
+        <h1
+          style={{
+            fontSize: "25px",
+            fontWeight: "bold",
+            color: "#21ff6e",
+            marginRight: "10px",
+          }}
+        >
+          เหลือบอล {remainingBall} ลูก
+        </h1>
+        <br />
       </div>
 
       <canvas
@@ -460,6 +516,7 @@ export default function Home() {
         }}
       />
 
+      {/* ถ้ายิงโดนแล้ว => แสดงปุ่มด่านต่อไป */}
       {showStartButton && (
         <div
           style={{
@@ -467,18 +524,54 @@ export default function Home() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            padding: "20px",
-            backgroundColor: "rgba(0,0,0,0.7)",
-            borderRadius: "10px",
+            padding: "30px",
+            background:
+              "linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8))",
+            borderRadius: "15px",
+            boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.5)",
+            textAlign: "center",
+            color: "white",
+            width: "300px",
           }}
         >
-          <p style={{ color: "red" }}>!! ยิงโดนแล้ว !!</p>
-          <p style={{ color: "white" }}>!! ไปด่านต่อไปกันเถอะ !!</p>
+          <p style={{ color: "red", fontSize: "20px", fontWeight: "bold" }}>
+            !! ยิงโดนแล้ว !!
+          </p>
+          <p style={{ color: "white", fontSize: "18px", marginTop: "10px" }}>
+            !! ไปด่านต่อไปกันเถอะ !!
+          </p>
           <br />
-          <button onClick={handleNext}>ด่านต่อไป</button>
+          <button
+            onClick={handleNext}
+            style={{
+              padding: "10px 20px",
+              background: "linear-gradient(to right, #2196F3, #21CBF3)",
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              boxShadow: "0px 5px 10px rgba(0, 0, 0, 0.3)",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              const target = e.target as HTMLButtonElement;
+              target.style.transform = "scale(1.1)";
+              target.style.boxShadow = "0px 8px 15px rgba(0, 0, 0, 0.5)";
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLButtonElement;
+              target.style.transform = "scale(1)";
+              target.style.boxShadow = "0px 5px 10px rgba(0, 0, 0, 0.3)";
+            }}
+          >
+            ด่านต่อไป
+          </button>
         </div>
       )}
 
+      {/* ถ้าบอลหมด => Game Over */}
       {over && (
         <div
           style={{
@@ -486,44 +579,191 @@ export default function Home() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            padding: "20px",
-            backgroundColor: "rgba(0,0,0,0.7)",
-            borderRadius: "10px",
+            padding: "30px",
+            background:
+              "linear-gradient(to bottom, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.8))",
+            borderRadius: "15px",
+            boxShadow: "0px 10px 20px rgba(0, 0, 0, 0.5)",
+            textAlign: "center",
+            color: "white",
+            width: "300px",
           }}
         >
-          <p style={{ color: "red" }}>!! บอลหมดแล้ว !!</p>
-          <p style={{ color: "lightgreen" }}>มาได้ถึงด่านที่ {level}</p>
+          <p style={{ color: "red", fontSize: "20px", fontWeight: "bold" }}>
+            !! บอลหมดแล้ว !!
+          </p>
+          <p
+            style={{ color: "lightgreen", fontSize: "18px", marginTop: "10px" }}
+          >
+            มาได้ถึงด่านที่ {level}
+          </p>
           <br />
-          <button onClick={handleReset}>เริ่มเล่นใหม่</button>
+          <button
+            onClick={handleReset}
+            style={{
+              padding: "10px 20px",
+              background: "linear-gradient(to right, #4CAF50, #8BC34A)",
+              color: "white",
+              fontSize: "16px",
+              fontWeight: "bold",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              boxShadow: "0px 5px 10px rgba(0, 0, 0, 0.3)",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              const target = e.target as HTMLButtonElement;
+              target.style.transform = "scale(1.1)";
+              target.style.boxShadow = "0px 8px 15px rgba(0, 0, 0, 0.5)";
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLButtonElement;
+              target.style.transform = "scale(1)";
+              target.style.boxShadow = "0px 5px 10px rgba(0, 0, 0, 0.3)";
+            }}
+          >
+            เริ่มเล่นใหม่
+          </button>
         </div>
       )}
-      <div>
+
+      {/* ปุ่มยิง (ถ้ายังไม่ยิง, ไม่โดน, ไม่อยู่หน้าด่านต่อไป) */}
+      <div
+        style={{
+          gap: "20px",
+          padding: "20px",
+          borderRadius: "10px",
+          boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
+          width: "fit-content",
+          height: "auto",
+          backgroundColor: "rgba(255, 255, 255, 0.1)", // เพิ่มพื้นหลังสีเข้ม
+          margin: "0 auto", // จัดให้อยู่กึ่งกลางแนวนอน
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: "20px",
+            padding: "20px",
+            borderRadius: "10px",
+            boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
+            width: "fit-content",
+            height: "auto",
+            backgroundColor: "rgba(255, 255, 255, 0.1)", // เพิ่มพื้นหลังสีเข้ม
+            margin: "0 auto", // จัดให้อยู่กึ่งกลางแนวนอน
+            marginBottom: "20px",
+          }}
+        >
+          <label style={{ display: "flex", alignItems: "center" }}>
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: "#FFFFFF",
+                marginRight: "10px",
+              }}
+            >
+              ความเร็ว (0-100):
+            </span>
+            <input
+              type="number"
+              value={velocity}
+              min={0}
+              max={110}
+              onChange={(e) => {
+                let v = Number(e.target.value);
+                v = Math.max(0, Math.min(100, v));
+                setVelocity(v);
+              }}
+              style={{
+                padding: "10px",
+                width: "80px",
+                border: "2px solid #ccc",
+                borderRadius: "5px",
+                fontSize: "18px",
+                fontWeight: "bold",
+                textAlign: "center",
+                backgroundColor: "#f0f8ff",
+                color: "#000000",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#4CAF50")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+          </label>
+          <label style={{ display: "flex", alignItems: "center" }}>
+            <span
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                color: "#FFFFFF",
+                marginRight: "10px",
+              }}
+            >
+              มุม (0-90):
+            </span>
+            <input
+              type="number"
+              value={angle}
+              min={0}
+              max={90}
+              onChange={(e) => {
+                let a = Number(e.target.value);
+                a = Math.max(0, Math.min(90, a));
+                setAngle(a);
+              }}
+              style={{
+                padding: "10px",
+                width: "80px",
+                border: "2px solid #ccc",
+                borderRadius: "5px",
+                fontSize: "18px",
+                fontWeight: "bold",
+                textAlign: "center",
+                backgroundColor: "#f0f8ff",
+                color: "#000000",
+                outline: "none",
+                transition: "border-color 0.2s",
+              }}
+              onFocus={(e) => (e.target.style.borderColor = "#4CAF50")}
+              onBlur={(e) => (e.target.style.borderColor = "#ccc")}
+            />
+          </label>
+        </div>
+
         {!isShooting && !hitTarget && !showStartButton && (
           <button
             onClick={handleShoot}
             style={{
               marginRight: 20,
-              width: 50,
-              height: 25,
-              backgroundColor: "white",
+              width: 150,
+              height: 60,
+              background: "linear-gradient(to bottom, #ff5555, #ffe000)",
               color: "black",
+              fontWeight: "bold",
+              fontSize: "20px",
+              border: "none",
+              borderRadius: "8px",
+              boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              const target = e.target as HTMLButtonElement; // แปลงเป็น HTMLButtonElement
+              target.style.transform = "scale(1.1)";
+              target.style.boxShadow = "0px 6px 8px rgba(0, 0, 0, 0.15)";
+            }}
+            onMouseLeave={(e) => {
+              const target = e.target as HTMLButtonElement; // แปลงเป็น HTMLButtonElement
+              target.style.transform = "scale(1)";
+              target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
             }}
           >
-            ยิง
+            !! SHOOT !!
           </button>
         )}
-        {/* <button
-          onClick={handleReset}
-          style={{
-            marginRight: 20,
-            width: 50,
-            height: 25,
-            backgroundColor: "white",
-            color: "black",
-          }}
-        >
-          รีเซ็ต
-        </button> */}
       </div>
     </div>
   );
