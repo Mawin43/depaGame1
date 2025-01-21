@@ -52,7 +52,7 @@ export default function Home() {
   const [targetX, setTargetX] = useState(600);
   const [targetY, setTargetY] = useState(350);
 
-  // โหลดรูปใน useEffect
+  // ===== โหลดรูปใน useEffect =====
   useEffect(() => {
     const tImg = new Image();
     tImg.src = "/img/tower.png";
@@ -74,9 +74,10 @@ export default function Home() {
       cloudImgRef.current = bImg;
       redrawAll();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ฟังก์ชันวาดลูกศร
+  // ===== ฟังก์ชันวาดลูกศร =====
   function drawArrow(
     ctx: CanvasRenderingContext2D,
     startX: number,
@@ -133,7 +134,7 @@ export default function Home() {
     ctx.fillText(label, labelX, labelY - padding);
   }
 
-  // วาดฉาก
+  // ===== ฟังก์ชันวาดฉาก =====
   const drawScene = (ctx: CanvasRenderingContext2D) => {
     // พื้นหลัง
     if (cloudImgRef.current) {
@@ -153,7 +154,7 @@ export default function Home() {
     ctx.fillStyle = "green";
     ctx.fillRect(0, groundY, ctx.canvas.width, ctx.canvas.height - groundY);
 
-    // ป้อม
+    // ป้อม tower
     if (towerImgRef.current) {
       ctx.drawImage(
         towerImgRef.current,
@@ -184,7 +185,7 @@ export default function Home() {
     }
   };
 
-  // วาดเส้น
+  // ===== ฟังก์ชันวาดเส้น =====
   const drawAllLines = (ctx: CanvasRenderingContext2D) => {
     linesRef.current.forEach((line) => {
       const pts = line.points;
@@ -221,7 +222,7 @@ export default function Home() {
     });
   };
 
-  // redrawAll
+  // ===== ฟังก์ชัน redrawAll =====
   const redrawAll = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -238,7 +239,7 @@ export default function Home() {
     }
   };
 
-  // ตรวจชน
+  // ===== ตรวจสอบการชน =====
   const checkCollision = (bulletX: number, bulletY: number) => {
     const dx = bulletX - targetX;
     const dy = bulletY - targetY;
@@ -246,7 +247,7 @@ export default function Home() {
     return distance < targetRadius + bulletRadius;
   };
 
-  // ยิง
+  // ===== ยิง =====
   const handleShoot = () => {
     setOneShot(oneShot + 1);
     setIsShooting(true);
@@ -260,7 +261,7 @@ export default function Home() {
     });
   };
 
-  // รีเซ็ต
+  // ===== รีเซ็ต =====
   const handleReset = () => {
     if (level > bestStage) {
       setBestStage(level);
@@ -303,7 +304,7 @@ export default function Home() {
     setOneShot(0);
   };
 
-  // ด่านต่อไป
+  // ===== ด่านต่อไป =====
   const handleNextLevel = () => {
     if (requestIdRef.current !== null) {
       cancelAnimationFrame(requestIdRef.current);
@@ -316,7 +317,6 @@ export default function Home() {
       return newLevel;
     });
 
-    // สุ่มตำแหน่ง enemy
     const randomX = Math.floor(Math.random() * (750 - 400 + 1)) + 400;
     const randomY = Math.floor(Math.random() * (350 - 50 + 1)) + 50;
     setTargetX(randomX);
@@ -330,7 +330,7 @@ export default function Home() {
     setShowStartButton(true);
   };
 
-  // อนิเมชันลูกกระสุน
+  // ===== อนิเมชันลูกกระสุน =====
   const animateProjectile = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -341,7 +341,7 @@ export default function Home() {
 
     const drawFrame = () => {
       const rad = (angle * Math.PI) / 180;
-      const speedFactor = 7; // เร่งความเร็ว
+      const speedFactor = 7;
       const t = (Date.now() - startTime) / 1000;
       const scaledTime = t * speedFactor;
 
@@ -427,11 +427,13 @@ export default function Home() {
         cancelAnimationFrame(requestIdRef.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isShooting]);
 
   // useEffect: mount => วาดฉากครั้งแรก
   useEffect(() => {
     redrawAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // useEffect: angle, velocity เปลี่ยน => วาดใหม่
@@ -439,12 +441,13 @@ export default function Home() {
     if (!isShooting && !hitTarget && !showStartButton) {
       redrawAll();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [angle, velocity, isShooting, hitTarget, showStartButton]);
 
   return (
     <div
       style={{
-        backgroundColor: "black", // พื้นหลังสีดำ
+        backgroundColor: "black",
         color: "white",
         minHeight: "100vh",
         textAlign: "center",
@@ -500,7 +503,6 @@ export default function Home() {
         }}
       />
 
-      {/* ถ้ายิงโดน => ด่านต่อไป */}
       {showStartButton && (
         <div
           style={{
@@ -555,7 +557,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* บอลหมด => จบเกม */}
       {over && (
         <div
           style={{
@@ -612,7 +613,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ส่วนควบคุม input และปุ่มยิง */}
       <div
         style={{
           gap: "20px",
@@ -753,7 +753,7 @@ export default function Home() {
       <div
         style={{
           position: "absolute",
-          top: "200px", // ปรับตามความเหมาะสม
+          top: "200px",
           right: "20px",
           width: "400px",
           padding: "15px",
@@ -762,22 +762,18 @@ export default function Home() {
           borderRadius: "10px",
           color: "#fff",
           textAlign: "left",
-          marginTop: 30,
-          marginRight: 30,
         }}
       >
         <h2 style={{ marginTop: 0 }}>กติกา</h2>
         <ul style={{ marginTop: 0 }}>
-          <li>1. กำหนด "ความเร็ว" และ "มุม" สำหรับยิงลูกบอล</li>
-          <li>2. กดปุ่ม “SHOOT” เพื่อยิงลูกบอล</li>
           <li>
-            3. หากยิงลูกบอลโดนเป้าหมายตั้งแต่ครั้งแรก จะได้รับบอลคืน 2 ลูก
+            1. กำหนด &quot;ความเร็ว&quot; และ &quot;มุม&quot; สำหรับยิงลูกบอล
           </li>
-          <li>
-            4. หากยิงลูกบอลโดนเป้าหมายแต่ไม่ใช่ครั้งแรก จะได้รับบอลคืน 1 ลูก
-          </li>
-          <li>5. เป้าหมายจะตัวเล็กลงทุกๆ 3 ด่าน</li>
-          <li>6. ถ้าบอลหมด ⇒ Game Over</li>
+          <li>2. กดปุ่ม &quot;SHOOT&quot; เพื่อยิงลูกบอล</li>
+          <li>3. หากยิงโดนเป้าในครั้งแรก จะได้ลูกบอลคืน 2 ลูก</li>
+          <li>4. หากยิงโดนเป้า แต่ไม่ใช่ครั้งแรก จะได้คืน 1 ลูก</li>
+          <li>5. เป้าหมายจะเล็กลงทุก ๆ 3 ด่าน</li>
+          <li>6. ถ้าบอลหมด Game Over</li>
         </ul>
       </div>
     </div>
