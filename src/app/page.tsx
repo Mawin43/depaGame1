@@ -16,20 +16,19 @@ export default function Home() {
   // ขนาดเป้า
   const [targetRadius, setTargetRadius] = useState(50);
 
-  // ปุ่ม "ด่านต่อไป" หลังยิงโดน
+  // ปุ่ม "ด่านต่อไป"
   const [showStartButton, setShowStartButton] = useState(false);
 
   // -------- Refs --------
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestIdRef = useRef<number | null>(null);
 
-  // ** โหลดรูป 'tower.png' เก็บใน towerImgRef **
+  // โหลดรูป tower + enemy + cloud
   const towerImgRef = useRef<HTMLImageElement | null>(null);
-  // ** โหลดรูป 'enemy.gif' เก็บใน enemyImgRef **
   const enemyImgRef = useRef<HTMLImageElement | null>(null);
   const cloudImgRef = useRef<HTMLImageElement | null>(null);
 
-  // เก็บเส้นการยิง
+  // เก็บเส้นที่ยิง
   const linesRef = useRef<
     Array<{
       velocity: number;
@@ -43,43 +42,41 @@ export default function Home() {
   // -------- ค่าคงที่ --------
   const g = 9.8;
   const groundY = 400;
-  const playerX = 50; // ตำแหน่ง X ป้อม
-  const playerY = groundY; // ตำแหน่ง Y พื้น
+  const playerX = 50;
+  const playerY = groundY;
   const playerWidth = 80;
   const playerHeight = 110;
   const bulletRadius = 5;
 
-  // ตำแหน่งศัตรู (เดิมคือเป้าสีฟ้า)
+  // ตำแหน่ง enemy
   const [targetX, setTargetX] = useState(600);
   const [targetY, setTargetY] = useState(350);
 
-  // ===== โหลดภาพป้อม + enemy.gif ใน useEffect =====
+  // โหลดรูปใน useEffect
   useEffect(() => {
-    // โหลด tower.png
     const tImg = new Image();
-    tImg.src = "/img/tower.png"; // path ตามโครงสร้างไฟล์
+    tImg.src = "/img/tower.png";
     tImg.onload = () => {
       towerImgRef.current = tImg;
       redrawAll();
     };
 
-    // โหลด enemy.gif
     const eImg = new Image();
-    eImg.src = "/img/enemy.gif"; // path ตามโครงสร้างไฟล์
+    eImg.src = "/img/enemy.gif";
     eImg.onload = () => {
       enemyImgRef.current = eImg;
       redrawAll();
     };
 
     const bImg = new Image();
-    bImg.src = "/img/cloud.jpg"; // path ตามโครงสร้างไฟล์
+    bImg.src = "/img/cloud.jpg";
     bImg.onload = () => {
       cloudImgRef.current = bImg;
       redrawAll();
     };
   }, []);
 
-  // ===== ฟังก์ชันวาดลูกศร (v,a) =====
+  // ฟังก์ชันวาดลูกศร
   function drawArrow(
     ctx: CanvasRenderingContext2D,
     startX: number,
@@ -88,12 +85,9 @@ export default function Home() {
     length: number
   ) {
     const rad = (angleDeg * Math.PI) / 180;
-
-    // คำนวณปลายลูกศร
     const endX = startX + length * Math.cos(rad);
     const endY = startY - length * Math.sin(rad);
 
-    // วาดลำตัวลูกศร
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     ctx.lineTo(endX, endY);
@@ -101,7 +95,7 @@ export default function Home() {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // วาดหัวลูกศร
+    // หัวลูกศร
     const headLength = 10;
     const angleLeft = rad + (30 * Math.PI) / 180;
     const angleRight = rad - (30 * Math.PI) / 180;
@@ -119,20 +113,15 @@ export default function Home() {
     ctx.fillStyle = "blue";
     ctx.fill();
 
-    // ข้อความ (v, a)
+    // ข้อความ
     const label = `(ความเร็ว ${velocity}, มุม ${angleDeg})`;
     ctx.font = "14px Arial";
-
-    // วัดความกว้าง
     const textWidth = ctx.measureText(label).width;
     const textHeight = 16;
     const padding = 4;
-
-    // ตำแหน่งข้อความ (เหนือปลายลูกศรเล็กน้อย)
     const labelX = endX;
     const labelY = endY - 10;
 
-    // วาดพื้นหลังข้อความ
     ctx.fillStyle = "black";
     ctx.fillRect(
       labelX - padding,
@@ -140,16 +129,13 @@ export default function Home() {
       textWidth + padding * 2,
       textHeight + padding * 2
     );
-
-    // วาดข้อความสีขาว
     ctx.fillStyle = "white";
     ctx.fillText(label, labelX, labelY - padding);
   }
 
-  // ===== ฟังก์ชันวาดฉาก (พื้น, ป้อม, enemy.gif) =====
+  // วาดฉาก
   const drawScene = (ctx: CanvasRenderingContext2D) => {
     // พื้นหลัง
-
     if (cloudImgRef.current) {
       ctx.drawImage(
         cloudImgRef.current,
@@ -159,7 +145,6 @@ export default function Home() {
         ctx.canvas.height
       );
     } else {
-      // fallback เป็นสี่เหลี่ยมสีม่วง
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     }
@@ -168,7 +153,7 @@ export default function Home() {
     ctx.fillStyle = "green";
     ctx.fillRect(0, groundY, ctx.canvas.width, ctx.canvas.height - groundY);
 
-    // วาดป้อม tower
+    // ป้อม
     if (towerImgRef.current) {
       ctx.drawImage(
         towerImgRef.current,
@@ -178,14 +163,12 @@ export default function Home() {
         playerHeight
       );
     } else {
-      // fallback เป็นสี่เหลี่ยมสีม่วง
       ctx.fillStyle = "purple";
       ctx.fillRect(playerX, playerY - playerHeight, playerWidth, playerHeight);
     }
 
-    // วาด enemy.gif แทนเป้า
+    // enemy.gif
     if (enemyImgRef.current) {
-      // ให้กึ่งกลางอยู่ที่ (targetX, targetY)
       ctx.drawImage(
         enemyImgRef.current,
         targetX - targetRadius,
@@ -194,7 +177,6 @@ export default function Home() {
         targetRadius * 2
       );
     } else {
-      // fallback เป็นวงกลมสีน้ำเงิน
       ctx.beginPath();
       ctx.arc(targetX, targetY, targetRadius, 0, 2 * Math.PI);
       ctx.fillStyle = "blue";
@@ -202,13 +184,12 @@ export default function Home() {
     }
   };
 
-  // ===== ฟังก์ชันวาดเส้นที่ยิงทั้งหมด =====
+  // วาดเส้น
   const drawAllLines = (ctx: CanvasRenderingContext2D) => {
     linesRef.current.forEach((line) => {
       const pts = line.points;
       if (pts.length === 0) return;
 
-      // เส้นสีแดง
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < pts.length; i++) {
@@ -218,14 +199,12 @@ export default function Home() {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // ถ้ามี finalX, finalY => วาดข้อความ
       if (line.finalX !== undefined && line.finalY !== undefined) {
         const text = `ความเร็ว ${line.velocity}, มุม ${line.angle})`;
         ctx.font = "14px Arial";
         const textWidth = ctx.measureText(text).width;
         const textHeight = 16;
         const padding = 4;
-
         const labelX = line.finalX;
         const labelY = line.finalY - 10;
 
@@ -242,7 +221,7 @@ export default function Home() {
     });
   };
 
-  // ===== ฟังก์ชัน redrawAll =====
+  // redrawAll
   const redrawAll = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -252,7 +231,6 @@ export default function Home() {
     drawScene(ctx);
     drawAllLines(ctx);
 
-    // วาดลูกศร ถ้ายังไม่ยิง
     if (!isShooting && !hitTarget && !showStartButton) {
       const muzzleX = playerX + playerWidth / 2;
       const muzzleY = playerY - playerHeight;
@@ -260,7 +238,7 @@ export default function Home() {
     }
   };
 
-  // ===== ตรวจสอบการชน =====
+  // ตรวจชน
   const checkCollision = (bulletX: number, bulletY: number) => {
     const dx = bulletX - targetX;
     const dy = bulletY - targetY;
@@ -268,7 +246,7 @@ export default function Home() {
     return distance < targetRadius + bulletRadius;
   };
 
-  // ===== ยิง =====
+  // ยิง
   const handleShoot = () => {
     setOneShot(oneShot + 1);
     setIsShooting(true);
@@ -282,7 +260,7 @@ export default function Home() {
     });
   };
 
-  // ===== รีเซ็ต =====
+  // รีเซ็ต
   const handleReset = () => {
     if (level > bestStage) {
       setBestStage(level);
@@ -317,7 +295,6 @@ export default function Home() {
     setShowStartButton(false);
     setOver(false);
 
-    // เพิ่มลูกบอลกลับ
     if (oneShot === 1) {
       setRemainingBall(remainingBall + 2);
     } else {
@@ -326,14 +303,13 @@ export default function Home() {
     setOneShot(0);
   };
 
-  // ===== ด่านต่อไป =====
+  // ด่านต่อไป
   const handleNextLevel = () => {
     if (requestIdRef.current !== null) {
       cancelAnimationFrame(requestIdRef.current);
     }
     setLevel((prev) => {
       const newLevel = prev + 1;
-      // ลดขนาดเป้าทุก 3 ด่าน
       if (newLevel % 3 === 0) {
         setTargetRadius((oldRad) => Math.max(5, oldRad - 2));
       }
@@ -354,7 +330,7 @@ export default function Home() {
     setShowStartButton(true);
   };
 
-  // ===== อนิเมชันลูกกระสุน =====
+  // อนิเมชันลูกกระสุน
   const animateProjectile = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -394,7 +370,6 @@ export default function Home() {
         ctx.fillStyle = "red";
         ctx.fill();
 
-        // เช็คขอบ
         if (bulletX < 0 || bulletX > canvas.width || bulletY < 0) {
           setIsShooting(false);
           if (remainingBall <= 0) {
@@ -438,7 +413,7 @@ export default function Home() {
     drawFrame();
   };
 
-  // ===== useEffect: isShooting => animate =====
+  // useEffect: isShooting => animate
   useEffect(() => {
     if (isShooting) {
       animateProjectile();
@@ -454,21 +429,30 @@ export default function Home() {
     };
   }, [isShooting]);
 
-  // ===== useEffect: mount => วาดฉากครั้งแรก =====
+  // useEffect: mount => วาดฉากครั้งแรก
   useEffect(() => {
     redrawAll();
   }, []);
 
-  // ===== useEffect: เมื่อ angle/velocity เปลี่ยน และยังไม่ยิง => วาดใหม่ =====
+  // useEffect: angle, velocity เปลี่ยน => วาดใหม่
   useEffect(() => {
     if (!isShooting && !hitTarget && !showStartButton) {
       redrawAll();
     }
   }, [angle, velocity, isShooting, hitTarget, showStartButton]);
 
-  // ===== Render =====
   return (
-    <div style={{ textAlign: "center", marginTop: 50, position: "relative" }}>
+    <div
+      style={{
+        backgroundColor: "black", // พื้นหลังสีดำ
+        color: "white",
+        minHeight: "100vh",
+        textAlign: "center",
+        position: "relative",
+        marginTop: 0,
+        paddingTop: 50,
+      }}
+    >
       <div
         style={{
           gap: "20px",
@@ -477,8 +461,8 @@ export default function Home() {
           boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
           width: "fit-content",
           height: "150px",
-          backgroundColor: "rgba(255, 255, 255, 0.1)", // เพิ่มพื้นหลังสีเข้ม
-          margin: "0 auto", // จัดให้อยู่กึ่งกลางแนวนอน
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
+          margin: "0 auto",
         }}
       >
         <h1
@@ -516,7 +500,7 @@ export default function Home() {
         }}
       />
 
-      {/* ถ้ายิงโดนแล้ว => แสดงปุ่มด่านต่อไป */}
+      {/* ถ้ายิงโดน => ด่านต่อไป */}
       {showStartButton && (
         <div
           style={{
@@ -571,7 +555,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ถ้าบอลหมด => Game Over */}
+      {/* บอลหมด => จบเกม */}
       {over && (
         <div
           style={{
@@ -628,7 +612,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ปุ่มยิง (ถ้ายังไม่ยิง, ไม่โดน, ไม่อยู่หน้าด่านต่อไป) */}
+      {/* ส่วนควบคุม input และปุ่มยิง */}
       <div
         style={{
           gap: "20px",
@@ -637,8 +621,8 @@ export default function Home() {
           boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
           width: "fit-content",
           height: "auto",
-          backgroundColor: "rgba(255, 255, 255, 0.1)", // เพิ่มพื้นหลังสีเข้ม
-          margin: "0 auto", // จัดให้อยู่กึ่งกลางแนวนอน
+          backgroundColor: "rgba(255, 255, 255, 0.1)",
+          margin: "20px auto",
         }}
       >
         <div
@@ -650,8 +634,7 @@ export default function Home() {
             boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.2)",
             width: "fit-content",
             height: "auto",
-            backgroundColor: "rgba(255, 255, 255, 0.1)", // เพิ่มพื้นหลังสีเข้ม
-            margin: "0 auto", // จัดให้อยู่กึ่งกลางแนวนอน
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
             marginBottom: "20px",
           }}
         >
@@ -751,12 +734,12 @@ export default function Home() {
               transition: "transform 0.2s, box-shadow 0.2s",
             }}
             onMouseEnter={(e) => {
-              const target = e.target as HTMLButtonElement; // แปลงเป็น HTMLButtonElement
+              const target = e.target as HTMLButtonElement;
               target.style.transform = "scale(1.1)";
               target.style.boxShadow = "0px 6px 8px rgba(0, 0, 0, 0.15)";
             }}
             onMouseLeave={(e) => {
-              const target = e.target as HTMLButtonElement; // แปลงเป็น HTMLButtonElement
+              const target = e.target as HTMLButtonElement;
               target.style.transform = "scale(1)";
               target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
             }}
@@ -764,6 +747,38 @@ export default function Home() {
             !! SHOOT !!
           </button>
         )}
+      </div>
+
+      {/* ====== กรอบกติกา ด้านขวา ====== */}
+      <div
+        style={{
+          position: "absolute",
+          top: "200px", // ปรับตามความเหมาะสม
+          right: "20px",
+          width: "400px",
+          padding: "15px",
+          backgroundColor: "rgba(0,0,0,0.5)",
+          border: "2px solid #fff",
+          borderRadius: "10px",
+          color: "#fff",
+          textAlign: "left",
+          marginTop: 30,
+          marginRight: 30,
+        }}
+      >
+        <h2 style={{ marginTop: 0 }}>กติกา</h2>
+        <ul style={{ marginTop: 0 }}>
+          <li>1. กำหนด "ความเร็ว" และ "มุม" สำหรับยิงลูกบอล</li>
+          <li>2. กดปุ่ม “SHOOT” เพื่อยิงลูกบอล</li>
+          <li>
+            3. หากยิงลูกบอลโดนเป้าหมายตั้งแต่ครั้งแรก จะได้รับบอลคืน 2 ลูก
+          </li>
+          <li>
+            4. หากยิงลูกบอลโดนเป้าหมายแต่ไม่ใช่ครั้งแรก จะได้รับบอลคืน 1 ลูก
+          </li>
+          <li>5. เป้าหมายจะตัวเล็กลงทุกๆ 3 ด่าน</li>
+          <li>6. ถ้าบอลหมด ⇒ Game Over</li>
+        </ul>
       </div>
     </div>
   );
